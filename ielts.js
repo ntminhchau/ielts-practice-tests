@@ -1,106 +1,451 @@
-:root {
-    --primary-color: #005b96;
-    --secondary-color: #eef2f5;
-    --border-color: #ced4da;
-    --correct-color: #28a745;
-    --incorrect-color: #dc3545;
-    --text-color: #343a40;
-    --light-text: #fff;
-    --panel-bg: #fff;
-    --highlight-yellow: rgba(255, 255, 0, 0.4);
-    --highlight-pink: rgba(255, 105, 180, 0.4);
-    --highlight-cyan: rgba(0, 255, 255, 0.4);
-    --highlight-green: rgba(144, 238, 144, 0.4);
-}
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENT SELECTORS ---
+    const homePage = document.getElementById('home-page');
+    const testPage = document.getElementById('test-page');
+    const resultsPage = document.getElementById('results-page');
+    const testTitleEl = document.getElementById('test-title');
+    const timerDisplay = document.getElementById('timer-display');
+    const readingPanel = document.getElementById('reading-panel');
+    const questionsPanel = document.getElementById('questions-panel');
+    const questionNavigationContainer = document.getElementById('question-navigation-container');
+    const footerToggle = document.getElementById('footer-toggle');
+    const finalScoreEl = document.getElementById('final-score');
+    const timeTakenEl = document.getElementById('time-taken');
+    const bandScoreEl = document.getElementById('band-score');
+    const reviewContainer = document.getElementById('review-container');
+    const resultsReadingPanel = document.getElementById('results-reading-panel');
+    
+    // Highlighter
+    const highlighterToolbar = document.getElementById('highlighter-toolbar');
+    const eraserBtn = document.getElementById('eraser-btn');
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
-    background-color: var(--secondary-color);
-    color: var(--text-color);
-}
+    // Dictionary & Phrasebook
+    const dictionaryModal = document.getElementById('dictionary-modal');
+    const phrasebookBtn = document.getElementById('phrasebook-btn');
+    const phrasebookModal = document.getElementById('phrasebook-modal');
 
-.container {
-    width: 100%;
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: 20px;
-    box-sizing: border-box;
-}
+    // --- STATE VARIABLES ---
+    let currentTest = null;
+    let userAnswers = [];
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let isTimed = false;
+    let activeHighlightColor = 'yellow';
+    let phrasebook = JSON.parse(localStorage.getItem('ieltsPhrasebook')) || [];
+    
+    // A small, sample dictionary for the lookup feature
+    const sampleDictionary = {
+        "tram": { en: "A public transport vehicle, powered by electricity, that runs on rails along public roads.", vn: "Xe điện, một phương tiện giao thông công cộng chạy bằng điện trên đường ray." },
+        "vending machine": { en: "A machine that dispenses items such as snacks or tickets when a coin or token is inserted.", vn: "Máy bán hàng tự động, bán các mặt hàng như đồ ăn nhẹ hoặc vé." },
+        "obstruct": { en: "To block a road, passage, or view.", vn: "Làm cản trở, chặn một con đường, lối đi hoặc tầm nhìn." },
+        "sweater": { en: "A knitted garment worn on the upper part of the body.", vn: "Áo len, một loại áo dệt kim mặc ở phần trên của cơ thể." },
+        "resign": { en: "To voluntarily leave a job or other position.", vn: "Từ chức, tự nguyện rời bỏ một công việc hoặc vị trí." },
+        "courtesy": { en: "The showing of politeness in one's attitude and behavior toward others.", vn: "Sự lịch sự, nhã nhặn trong thái độ và hành vi đối với người khác." }
+    };
 
-.hidden { display: none !important; }
+    // --- INITIAL SETUP & EVENT LISTENERS ---
+    
+    // Page Load: Check for direct link to a test (future feature, good to have)
+    window.addEventListener('load', () => {
+        const params = new URLSearchParams(window.location.search);
+        const testToLoad = params.get('test');
+        if (testToLoad) {
+            loadTest(testToLoad, true); // Default to timed if linked directly
+        }
+    });
 
-/* --- Home Page --- */
-#home-page h1 { text-align: center; color: var(--primary-color); }
-#home-page h2 { border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-top: 40px; }
-.test-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-.test-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.button-group { margin-top: 15px; display: flex; gap: 10px; }
-.main-btn, .start-btn { flex-grow: 1; padding: 10px; border: 1px solid var(--primary-color); background-color: var(--primary-color); color: var(--light-text); border-radius: 5px; cursor: pointer; transition: background-color 0.2s; font-size: 1em; }
-.start-btn.untimed { background-color: var(--light-text); color: var(--primary-color); }
-.main-btn:hover, .start-btn:hover { opacity: 0.9; }
-#phrasebook-btn { display: block; margin: 20px auto; width: 200px; }
+    // Home Page: Start Test Buttons
+    document.querySelectorAll('.start-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const testFile = e.target.closest('.test-card').dataset.testFile;
+            isTimed = e.target.classList.contains('timed');
+            loadTest(testFile, isTimed);
+        });
+    });
 
-/* --- Test Page --- */
-#test-page, #results-page { display: flex; flex-direction: column; height: calc(100vh - 40px); }
-.test-header, .results-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
-.timer { font-weight: bold; font-size: 1.2em; color: var(--incorrect-color); }
-.test-container, .results-container { display: flex; flex-grow: 1; overflow: hidden; border: 1px solid var(--border-color); margin: 10px 0; }
-.panel { padding: 20px; overflow-y: auto; background: var(--panel-bg); height: 100%; box-sizing: border-box; }
-#reading-panel, #results-reading-panel { flex: 1 1 50%; }
-#questions-panel, #review-container { flex: 1 1 50%; }
-.resizer { flex: 0 0 10px; background-color: var(--secondary-color); cursor: col-resize; position: relative; }
-.resizer::before { content: '...'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(90deg); font-size: 18px; letter-spacing: -2px; color: #999; }
+    // Test Page: End Test & Footer Toggle
+    document.getElementById('end-test-btn').addEventListener('click', endTest);
+    footerToggle.addEventListener('click', () => {
+        questionNavigationContainer.classList.toggle('collapsed');
+        const icon = footerToggle.querySelector('i');
+        const text = footerToggle.querySelector('span');
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+        text.textContent = questionNavigationContainer.classList.contains('collapsed') ? 'Show Navigation' : 'Hide Navigation';
+    });
 
-/* --- Footer --- */
-.test-footer { position: relative; border-top: 1px solid var(--border-color); background: var(--panel-bg); }
-.footer-toggle { padding: 8px; text-align: center; cursor: pointer; background: #f1f1f1; border-bottom: 1px solid var(--border-color); }
-#question-navigation-container { display: flex; flex-direction: column; gap: 10px; padding: 10px; max-height: 200px; overflow-y: auto; }
-#question-navigation-container.collapsed { display: none; }
-.nav-section { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.nav-section-title { font-weight: bold; white-space: nowrap; }
-.nav-btn { width: 30px; height: 30px; border: 1px solid var(--border-color); background: #fff; cursor: pointer; border-radius: 4px; }
-.nav-btn.current { background-color: var(--primary-color); color: var(--light-text); border-color: var(--primary-color); }
-.nav-btn.answered { text-decoration: underline; font-weight: bold; }
-#end-test-btn { padding: 8px 16px; background-color: var(--incorrect-color); color: var(--light-text); border: none; border-radius: 5px; cursor: pointer; position: absolute; bottom: 10px; right: 10px; }
+    // Results Page: Back to Home
+    document.getElementById('back-to-home-btn').addEventListener('click', () => showPage('home-page'));
 
-/* --- Question Styling --- */
-.question-group { margin-bottom: 25px; }
-.question-group h4, .question-group .instructions { background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
-.question { margin-bottom: 20px; }
-.question label { display: block; margin-bottom: 5px; }
-.question input[type="text"] { width: 90%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; }
-.question select { width: auto; min-width: 150px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; }
-.horizontal-options { display: flex; gap: 15px; align-items: center; }
-.horizontal-options label { margin-bottom: 0; }
+    // --- TEST LOGIC ---
 
-/* --- Results Page --- */
-.results-summary { display: flex; gap: 30px; }
-.review-item { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; cursor: pointer; }
-.review-item:hover { background-color: #f8f9fa; }
-.correct-answer { color: var(--correct-color); font-weight: bold; }
-.incorrect-answer { color: var(--incorrect-color); font-weight: bold; text-decoration: line-through; }
-.explanation { background-color: #eef7ff; border-left: 4px solid var(--primary-color); padding: 10px; margin-top: 10px; font-style: italic; }
-mark { background-color: var(--highlight-yellow); padding: 2px 0; border-radius: 3px; }
-#back-to-home-btn { padding: 10px 20px; background-color: var(--primary-color); color: var(--light-text); border: none; border-radius: 5px; cursor: pointer; }
+    async function loadTest(testFile, timed) {
+        try {
+            const response = await fetch(`tests/${testFile}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            currentTest = await response.json();
+            
+            userAnswers = new Array(40).fill(null);
+            setupTestUI(timed);
+            showPage('test-page');
+        } catch (error) {
+            console.error('Failed to load test:', error);
+            alert('Error: Could not load the test file.');
+        }
+    }
 
-/* --- Highlighter --- */
-.highlight { border-radius: 3px; }
-.highlight.yellow { background-color: var(--highlight-yellow); }
-.highlight.pink { background-color: var(--highlight-pink); }
-.highlight.cyan { background-color: var(--highlight-cyan); }
-.highlight.green { background-color: var(--highlight-green); }
-#highlighter-toolbar { position: fixed; background: #fff; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; padding: 5px; gap: 5px; }
-.color-box { width: 20px; height: 20px; cursor: pointer; border: 2px solid transparent; border-radius: 3px; }
-.color-box.active { border-color: var(--primary-color); }
-.color-box.yellow { background-color: var(--highlight-yellow); }
-.color-box.pink { background-color: var(--highlight-pink); }
-.color-box.cyan { background-color: var(--highlight-cyan); }
-.color-box.green { background-color: var(--highlight-green); }
-#eraser-btn { cursor: pointer; padding: 0 5px; }
+    function setupTestUI(timed) {
+        testTitleEl.textContent = currentTest.title;
+        renderReadingPassages();
+        renderQuestions();
+        renderNavigation();
+        
+        secondsElapsed = 0;
+        clearInterval(timerInterval);
+        if (timed) {
+            timerDisplay.style.visibility = 'visible';
+            startTimer();
+        } else {
+            timerDisplay.style.visibility = 'hidden';
+        }
+    }
 
-/* --- Modals --- */
-#dictionary-modal, #phrasebook-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-#modal-content, #phrasebook-content { background: #fff; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-#phrasebook-list { max-height: 300px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 15px; }
-#phrasebook-list div { padding: 5px 0; border-bottom: 1px solid #f1f1f1; }
+    function startTimer() {
+        const testDuration = 60 * 60; // 60 minutes
+        let timeRemaining = testDuration;
+        
+        timerInterval = setInterval(() => {
+            secondsElapsed++;
+            timeRemaining--;
+            
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeRemaining <= 0) {
+                alert("Time's up!");
+                endTest();
+            }
+        }, 1000);
+    }
+
+    function endTest() {
+        clearInterval(timerInterval);
+        calculateResults();
+        showPage('results-page');
+    }
+
+    // --- UI RENDERING ---
+
+    function renderReadingPassages() {
+        let passageHTML = '';
+        currentTest.sections.forEach((section, index) => {
+            passageHTML += `<div id="section-passage-${index+1}">`;
+            passageHTML += `<h3>Reading Section ${index + 1}</h3>`;
+            passageHTML += section.readingPassage;
+            passageHTML += `</div>`;
+        });
+        readingPanel.innerHTML = passageHTML;
+    }
+
+    function renderQuestions() {
+        let questionHTML = '';
+        let questionCounter = 0;
+        currentTest.sections.forEach((section, secIndex) => {
+            questionHTML += `<h3 id="section-questions-${secIndex+1}">Section ${secIndex + 1}</h3>`;
+            section.questionGroups.forEach(group => {
+                questionHTML += `<div class="question-group">`;
+                questionHTML += `<div class="instructions">${group.instructions}</div>`;
+                group.questions.forEach(q => {
+                    const qIndex = questionCounter;
+                    questionHTML += `<div class="question" id="q-${qIndex}">`;
+                    questionHTML += `<p><strong>${qIndex + 1}.</strong> ${q.questionText || ''}</p>`;
+                    
+                    switch(group.type) {
+                        case 'fill-in-the-blanks':
+                            questionHTML += `<input type="text" id="q-input-${qIndex}" data-q-index="${qIndex}">`;
+                            break;
+                        case 'true-false-not-given':
+                            questionHTML += `<div class="horizontal-options">`;
+                            ['True', 'False', 'Not Given'].forEach(opt => {
+                                questionHTML += `<div><input type="radio" name="q-${qIndex}" value="${opt}" id="q-radio-${qIndex}-${opt}" data-q-index="${qIndex}"><label for="q-radio-${qIndex}-${opt}"> ${opt}</label></div>`;
+                            });
+                            questionHTML += `</div>`;
+                            break;
+                        case 'matching':
+                             questionHTML += `<select id="q-select-${qIndex}" data-q-index="${qIndex}"><option value="">Select...</option>`;
+                             group.options.forEach(opt => {
+                                 questionHTML += `<option value="${opt}">${opt}</option>`;
+                             });
+                             questionHTML += `</select>`;
+                            break;
+                    }
+                    questionHTML += `</div>`;
+                    questionCounter++;
+                });
+                questionHTML += `</div>`;
+            });
+        });
+        questionsPanel.innerHTML = questionHTML;
+        addAnswerListeners();
+    }
+
+    function renderNavigation() {
+        let navHTML = '';
+        let questionCounter = 0;
+        currentTest.sections.forEach((section, index) => {
+            navHTML += `<div class="nav-section"><span class="nav-section-title">Section ${index + 1}:</span>`;
+            const sectionQuestions = section.questionGroups.flatMap(g => g.questions).length;
+            for (let i = 0; i < sectionQuestions; i++) {
+                navHTML += `<button class="nav-btn" data-q-index="${questionCounter}">${questionCounter + 1}</button>`;
+                questionCounter++;
+            }
+            navHTML += `</div>`;
+        });
+        questionNavigationContainer.innerHTML = navHTML;
+        addNavListeners();
+        updateActiveQuestion(0);
+    }
+
+    // --- ANSWER & NAVIGATION HANDLING ---
+
+    function addAnswerListeners() {
+        questionsPanel.querySelectorAll('input, select').forEach(input => {
+            const eventType = (input.type === 'text') ? 'input' : 'change';
+            input.addEventListener(eventType, (e) => {
+                const index = parseInt(e.target.dataset.qIndex);
+                userAnswers[index] = e.target.value.trim().toLowerCase();
+                document.querySelector(`.nav-btn[data-q-index="${index}"]`).classList.add('answered');
+            });
+        });
+    }
+    
+    function addNavListeners() {
+        questionNavigationContainer.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.qIndex);
+                document.getElementById(`q-${index}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                updateActiveQuestion(index);
+            });
+        });
+    }
+    
+    function updateActiveQuestion(index) {
+        document.querySelectorAll('.nav-btn.current').forEach(btn => btn.classList.remove('current'));
+        document.querySelector(`.nav-btn[data-q-index="${index}"]`).classList.add('current');
+    }
+
+    // --- RESULTS PAGE LOGIC ---
+    
+    function calculateResults() {
+        let score = 0;
+        const allQuestions = currentTest.sections.flatMap(s => s.questionGroups.flatMap(g => g.questions));
+        userAnswers.forEach((answer, index) => {
+            const correctAnswers = allQuestions[index].answer.map(a => a.toLowerCase());
+            if (answer && correctAnswers.includes(answer)) {
+                score++;
+            }
+        });
+
+        finalScoreEl.textContent = `${score} / 40`;
+        const minutes = Math.floor(secondsElapsed / 60);
+        const seconds = secondsElapsed % 60;
+        timeTakenEl.textContent = isTimed ? `${60 - minutes - 1}m ${60 - seconds}s remaining` : `${minutes}m ${seconds}s`;
+        
+        bandScoreEl.textContent = getBandScore(score, currentTest.type);
+        renderReview(allQuestions);
+    }
+    
+    function getBandScore(score, testType) {
+        const gtBands = { 40: "9.0", 39: "8.5", 38: "8.0", 37: "7.5", 36: "7.0", 34: "6.5", 32: "6.0", 30: "5.5", 27: "5.0", 23: "4.5", 19: "4.0", 15: "3.5" };
+        const acBands = { 40: "9.0", 39: "8.5", 37: "8.0", 35: "7.5", 32: "7.0", 30: "6.5", 27: "6.0", 23: "5.5", 19: "5.0", 15: "4.5", 13: "4.0", 10: "3.5" };
+
+        const bands = testType === 'General Training' ? gtBands : acBands;
+        let band = "Below 3.5";
+        // Iterate keys in descending order
+        const sortedScores = Object.keys(bands).map(Number).sort((a, b) => b - a);
+        for (const s of sortedScores) {
+            if (score >= s) {
+                band = bands[s];
+                break;
+            }
+        }
+        return band;
+    }
+
+    function renderReview(allQuestions) {
+        // 1. Populate reading panel with evidence highlights
+        let passageHTML = '';
+        currentTest.sections.forEach((section, index) => {
+            passageHTML += `<h3>Reading Section ${index + 1}</h3>`;
+            let sectionPassage = section.readingPassage;
+            // Add unique IDs to evidence spans
+            section.questionGroups.flatMap(g => g.questions).forEach((q, qIdx) => {
+                const globalIndex = allQuestions.indexOf(q);
+                if (q.evidence) {
+                    sectionPassage = sectionPassage.replace(q.evidence, `<mark id="evidence-${globalIndex}">${q.evidence}</mark>`);
+                }
+            });
+            passageHTML += sectionPassage;
+        });
+        resultsReadingPanel.innerHTML = passageHTML;
+
+        // 2. Populate review panel
+        let reviewHTML = '<h3>Answer Review</h3>';
+        allQuestions.forEach((q, index) => {
+            const userAnswer = userAnswers[index] || "No Answer";
+            const correctAnswers = q.answer;
+            const isCorrect = correctAnswers.map(a => a.toLowerCase()).includes(userAnswer);
+
+            reviewHTML += `<div class="review-item" data-evidence-id="evidence-${index}">`;
+            reviewHTML += `<p><strong>Question ${index + 1}:</strong> ${q.questionText || q.instruction}</p>`;
+            reviewHTML += `<p>Your Answer: <span class="${isCorrect ? 'correct-answer' : 'incorrect-answer'}">${userAnswer}</span></p>`;
+            if (!isCorrect) {
+                 reviewHTML += `<p>Correct Answer: <span class="correct-answer">${correctAnswers.join(' / ')}</span></p>`;
+            }
+            reviewHTML += `<div class="explanation"><p><strong>Explanation:</strong> ${q.explanation}</p></div>`;
+            reviewHTML += `</div>`;
+        });
+        reviewContainer.innerHTML = reviewHTML;
+
+        // 3. Add click-to-scroll functionality
+        reviewContainer.querySelectorAll('.review-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const evidenceId = item.dataset.evidenceId;
+                const evidenceEl = resultsReadingPanel.querySelector(`#${evidenceId}`);
+                if (evidenceEl) {
+                    evidenceEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        });
+    }
+
+    // --- HIGHLIGHTER LOGIC ---
+
+    readingPanel.addEventListener('mouseup', (e) => {
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+        if (selectedText.length > 0 && !dictionaryModal.contains(e.target)) {
+            highlighterToolbar.style.left = `${e.pageX}px`;
+            highlighterToolbar.style.top = `${e.pageY - 40}px`;
+            highlighterToolbar.classList.remove('hidden');
+        } else {
+            highlighterToolbar.classList.add('hidden');
+        }
+    });
+    
+    document.addEventListener('mousedown', (e) => {
+        if (!highlighterToolbar.contains(e.target) && !readingPanel.contains(e.target)) {
+            highlighterToolbar.classList.add('hidden');
+        }
+    });
+
+    highlighterToolbar.querySelectorAll('.color-box').forEach(box => {
+        box.addEventListener('click', () => {
+            highlighterToolbar.querySelector('.active').classList.remove('active');
+            box.classList.add('active');
+            activeHighlightColor = box.dataset.color;
+            applyHighlight(activeHighlightColor);
+        });
+    });
+
+    eraserBtn.addEventListener('click', () => {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            let parent = selection.getRangeAt(0).commonAncestorContainer;
+            if (parent.nodeType !== 1) parent = parent.parentNode;
+            if (parent.classList.contains('highlight')) {
+                const text = document.createTextNode(parent.innerHTML);
+                parent.parentNode.replaceChild(text, parent);
+                window.getSelection().removeAllRanges();
+                highlighterToolbar.classList.add('hidden');
+            }
+        }
+    });
+
+    function applyHighlight(color) {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const span = document.createElement('span');
+            span.className = `highlight ${color}`;
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+        }
+        selection.removeAllRanges();
+        highlighterToolbar.classList.add('hidden');
+    }
+    
+    // --- DICTIONARY & PHRASEBOOK LOGIC ---
+    
+    readingPanel.addEventListener('dblclick', (e) => {
+        if (isTimed) return; // Only for untimed tests
+        const selectedText = window.getSelection().toString().trim().toLowerCase();
+        if (selectedText.length > 2 && selectedText.length < 30) { // Reasonable length for a lookup
+            const definition = sampleDictionary[selectedText];
+            if (definition) {
+                document.getElementById('selected-text').textContent = selectedText;
+                document.getElementById('en-definition').textContent = definition.en;
+                document.getElementById('vn-translation').textContent = definition.vn;
+                dictionaryModal.classList.remove('hidden');
+            }
+        }
+    });
+
+    document.getElementById('close-modal-btn').addEventListener('click', () => dictionaryModal.classList.add('hidden'));
+
+    document.getElementById('add-to-phrasebook-btn').addEventListener('click', () => {
+        const text = document.getElementById('selected-text').textContent;
+        if (text && !phrasebook.includes(text)) {
+            phrasebook.push(text);
+            localStorage.setItem('ieltsPhrasebook', JSON.stringify(phrasebook));
+            alert(`'${text}' added to your phrasebook.`);
+        }
+        dictionaryModal.classList.add('hidden');
+    });
+    
+    phrasebookBtn.addEventListener('click', () => {
+        const list = document.getElementById('phrasebook-list');
+        list.innerHTML = '';
+        if (phrasebook.length > 0) {
+            phrasebook.forEach(word => {
+                const div = document.createElement('div');
+                div.textContent = word;
+                list.appendChild(div);
+            });
+        } else {
+            list.innerHTML = '<p>Your phrasebook is empty.</p>';
+        }
+        phrasebookModal.classList.remove('hidden');
+    });
+    
+    document.getElementById('close-phrasebook-btn').addEventListener('click', () => phrasebookModal.classList.add('hidden'));
+    document.getElementById('clear-phrasebook-btn').addEventListener('click', () => {
+        if(confirm('Are you sure you want to clear your entire phrasebook?')) {
+            phrasebook = [];
+            localStorage.removeItem('ieltsPhrasebook');
+            document.getElementById('phrasebook-list').innerHTML = '<p>Your phrasebook is empty.</p>';
+        }
+    });
+
+
+    // --- PANEL RESIZER LOGIC ---
+    function enableResizer(resizerEl, panel1, panel2) {
+        let isResizing = false;
+        resizerEl.addEventListener('mousedown', () => { isResizing = true; });
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const container = resizerEl.parentElement;
+            const totalWidth = container.offsetWidth;
+            const leftPanelWidth = e.clientX - container.offsetLeft;
+            const leftPercentage = (leftPanelWidth / totalWidth) * 100;
+            if (leftPercentage > 20 && leftPercentage < 80) {
+                panel1.style.flex = `${leftPercentage}%`;
+                panel2.style.flex = `${100 - leftPercentage}%`;
+            }
+        });
+        document.addEventListener('mouseup', () => { isResizing = false; });
+    }
+    enableResizer(document.getElementById('resizer'), readingPanel, questionsPanel);
+    enableResizer(document.getElementById('results-resizer'), resultsReadingPanel, reviewContainer);
+});
