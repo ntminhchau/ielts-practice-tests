@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Practice Tests</title>
+    <link rel="stylesheet" href="ielts.css">
+</head>
+<body>
+
+    <div class="container">
+        <!-- ======================= -->
+        <!-- ====== HOME PAGE ====== -->
+        <!-- ======================= -->
+        <div id="home-page">
+            <h1>IELTS Reading Practice Tests</h1>
+
+            <!-- Academic Section -->
+            <h2>Academic Training</h2>
+            <div class="test-list">
+                <!-- Add Academic tests here -->
+                <p class="coming-soon">More tests coming soon...</p>
+            </div>
+
+            <!-- General Training Section -->
+            <h2>General Training</h2>
+            <div class="test-list">
+                <div class="test-card" data-test-file="cambridge19-gt-test1.json">
+                    <h3>Cambridge 19 - Test 1</h3>
+                    <div class="button-group">
+                        <button class="start-btn timed">Start with Timer</button>
+                        <button class="start-btn untimed">Start without Timer</button>
+                    </div>
+                </div>
+                <!-- Add more General Training tests here -->
+            </div>
+        </div>
+
+        <!-- ======================= -->
+        <!-- ====== TEST PAGE ====== -->
+        <!-- ======================= -->
+        <div id="test-page" class="hidden">
+            <div class="test-header">
+                <h2 id="test-title"></h2>
+                <div id="timer-display" class="timer">59:59</div>
+            </div>
+            <div class="test-container">
+                <div id="reading-panel" class="panel">
+                    <!-- Reading content will be loaded here -->
+                </div>
+                <div class="resizer" id="resizer"></div>
+                <div id="questions-panel" class="panel">
+                    <!-- Question content will be loaded here -->
+                </div>
+            </div>
+            <div class="test-footer">
+                <div id="question-navigation">
+                    <!-- Navigation buttons will be generated here -->
+                </div>
+                <button id="end-test-btn">End Test</button>
+            </div>
+        </div>
+        
+        <!-- ======================= -->
+        <!-- ===== RESULTS PAGE ==== -->
+        <!-- ======================= -->
+        <div id="results-page" class="hidden">
+            <h2>Test Results</h2>
+            <div class="results-summary">
+                <p><strong>Final Score:</strong> <span id="final-score"></span></p>
+                <p><strong>Time Taken:</strong> <span id="time-taken"></span></p>
+                <p><strong>Estimated Band Score:</strong> <span id="band-score"></span></p>
+            </div>
+            <div id="review-container">
+                <!-- Detailed review will be generated here -->
+            </div>
+            <button id="back-to-home-btn">Back to Home</button>
+        </div>
+
+    </div>
+
+    <script src="ielts.js"></script>
+</body>
+</html>
