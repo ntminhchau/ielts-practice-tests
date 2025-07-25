@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IELTS Practice Tests</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="ielts.css">
 </head>
 <body>
@@ -14,15 +15,13 @@
         <!-- ======================= -->
         <div id="home-page">
             <h1>IELTS Reading Practice Tests</h1>
+            <button id="phrasebook-btn" class="main-btn"><i class="fas fa-book"></i> My Phrasebook</button>
 
-            <!-- Academic Section -->
             <h2>Academic Training</h2>
             <div class="test-list">
-                <!-- Add Academic tests here -->
                 <p class="coming-soon">More tests coming soon...</p>
             </div>
 
-            <!-- General Training Section -->
             <h2>General Training</h2>
             <div class="test-list">
                 <div class="test-card" data-test-file="cambridge19-gt-test1.json">
@@ -32,7 +31,6 @@
                         <button class="start-btn untimed">Start without Timer</button>
                     </div>
                 </div>
-                <!-- Add more General Training tests here -->
             </div>
         </div>
 
@@ -42,7 +40,7 @@
         <div id="test-page" class="hidden">
             <div class="test-header">
                 <h2 id="test-title"></h2>
-                <div id="timer-display" class="timer">59:59</div>
+                <div id="timer-display" class="timer">60:00</div>
             </div>
             <div class="test-container">
                 <div id="reading-panel" class="panel">
@@ -54,7 +52,10 @@
                 </div>
             </div>
             <div class="test-footer">
-                <div id="question-navigation">
+                <div class="footer-toggle" id="footer-toggle">
+                    <span>Hide Navigation</span> <i class="fas fa-chevron-down"></i>
+                </div>
+                <div id="question-navigation-container">
                     <!-- Navigation buttons will be generated here -->
                 </div>
                 <button id="end-test-btn">End Test</button>
@@ -65,19 +66,56 @@
         <!-- ===== RESULTS PAGE ==== -->
         <!-- ======================= -->
         <div id="results-page" class="hidden">
-            <h2>Test Results</h2>
-            <div class="results-summary">
-                <p><strong>Final Score:</strong> <span id="final-score"></span></p>
-                <p><strong>Time Taken:</strong> <span id="time-taken"></span></p>
-                <p><strong>Estimated Band Score:</strong> <span id="band-score"></span></p>
+            <div class="results-header">
+                <h2>Test Results</h2>
+                <div class="results-summary">
+                    <p><strong>Final Score:</strong> <span id="final-score"></span></p>
+                    <p><strong>Time Taken:</strong> <span id="time-taken"></span></p>
+                    <p><strong>Estimated Band Score:</strong> <span id="band-score"></span></p>
+                </div>
+                <button id="back-to-home-btn">Back to Home</button>
             </div>
-            <div id="review-container">
-                <!-- Detailed review will be generated here -->
+            <div class="results-container">
+                <div id="results-reading-panel" class="panel"></div>
+                <div class="resizer" id="results-resizer"></div>
+                <div id="review-container" class="panel"></div>
             </div>
-            <button id="back-to-home-btn">Back to Home</button>
         </div>
 
     </div>
+    
+    <!-- Highlighter Toolbar -->
+    <div id="highlighter-toolbar" class="hidden">
+        <div class="color-box yellow active" data-color="yellow"></div>
+        <div class="color-box pink" data-color="pink"></div>
+        <div class="color-box cyan" data-color="cyan"></div>
+        <div class="color-box green" data-color="green"></div>
+        <div id="eraser-btn"><i class="fas fa-eraser"></i></div>
+    </div>
+
+    <!-- Dictionary/Phrasebook Modal -->
+    <div id="dictionary-modal" class="hidden">
+        <div id="modal-content">
+            <h3 id="selected-text"></h3>
+            <div id="definition-area">
+                <p><strong>EN:</strong> <span id="en-definition"></span></p>
+                <p><strong>VN:</strong> <span id="vn-translation"></span></p>
+            </div>
+            <button id="add-to-phrasebook-btn"><i class="fas fa-plus-circle"></i> Add to Phrasebook</button>
+            <button id="close-modal-btn">Close</button>
+        </div>
+    </div>
+    
+    <!-- Phrasebook Display Modal -->
+    <div id="phrasebook-modal" class="hidden">
+        <div id="phrasebook-content">
+            <h2>My Phrasebook</h2>
+            <div id="phrasebook-list"></div>
+            <button id="clear-phrasebook-btn">Clear Phrasebook</button>
+            <button id="close-phrasebook-btn">Close</button>
+        </div>
+    </div>
+
 
     <script src="ielts.js"></script>
 </body>
