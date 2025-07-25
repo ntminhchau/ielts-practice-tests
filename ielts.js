@@ -32,20 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let isTimed = false;
     let activeHighlightColor = 'yellow';
     let phrasebook = JSON.parse(localStorage.getItem('ieltsPhrasebook')) || [];
+    let lastSelectionRange = null; 
     
-    // A small, sample dictionary for the lookup feature
-    const sampleDictionary = {
-        "tram": { en: "A public transport vehicle, powered by electricity, that runs on rails along public roads.", vn: "Xe điện, một phương tiện giao thông công cộng chạy bằng điện trên đường ray." },
-        "vending machine": { en: "A machine that dispenses items such as snacks or tickets when a coin or token is inserted.", vn: "Máy bán hàng tự động, bán các mặt hàng như đồ ăn nhẹ hoặc vé." },
-        "obstruct": { en: "To block a road, passage, or view.", vn: "Làm cản trở, chặn một con đường, lối đi hoặc tầm nhìn." },
-        "sweater": { en: "A knitted garment worn on the upper part of the body.", vn: "Áo len, một loại áo dệt kim mặc ở phần trên của cơ thể." },
-        "resign": { en: "To voluntarily leave a job or other position.", vn: "Từ chức, tự nguyện rời bỏ một công việc hoặc vị trí." },
-        "courtesy": { en: "The showing of politeness in one's attitude and behavior toward others.", vn: "Sự lịch sự, nhã nhặn trong thái độ và hành vi đối với người khác." }
-    };
-
     // --- HELPER FUNCTIONS ---
-
-    // THIS IS THE MISSING FUNCTION
     function showPage(pageId) {
         homePage.classList.add('hidden');
         testPage.classList.add('hidden');
@@ -327,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selection = window.getSelection();
         const selectedText = selection.toString().trim();
         if (selectedText.length > 0 && !dictionaryModal.contains(e.target)) {
+            lastSelectionRange = selection.getRangeAt(0).cloneRange();
             highlighterToolbar.style.left = `${e.pageX}px`;
             highlighterToolbar.style.top = `${e.pageY - 40}px`;
             highlighterToolbar.classList.remove('hidden');
@@ -351,44 +341,68 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     eraserBtn.addEventListener('click', () => {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            let parent = selection.getRangeAt(0).commonAncestorContainer;
-            if (parent.nodeType !== 1) parent = parent.parentNode;
-            if (parent.classList.contains('highlight')) {
-                const text = document.createTextNode(parent.innerHTML);
-                parent.parentNode.replaceChild(text, parent);
-                window.getSelection().removeAllRanges();
-                highlighterToolbar.classList.add('hidden');
-            }
+        if (lastSelectionRange) {
+            try {
+                let parent = lastSelectionRange.commonAncestorContainer;
+                if (parent.nodeType !== 1) parent = parent.parentNode;
+                
+                while (parent && !parent.classList.contains('highlight')) {
+                    parent = parent.parentNode;
+                }
+
+                if (parent && parent.classList.contains('highlight')) {
+                    const text = document.createTextNode(parent.textContent);
+                    parent.parentNode.replaceChild(text, parent);
+                }
+            } catch (e) { console.error("Error erasing:", e); }
         }
+        window.getSelection().removeAllRanges();
+        highlighterToolbar.classList.add('hidden');
+        lastSelectionRange = null;
     });
 
     function applyHighlight(color) {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const span = document.createElement('span');
-            span.className = `highlight ${color}`;
-            span.appendChild(range.extractContents());
-            range.insertNode(span);
+        if (!lastSelectionRange) return;
+        
+        const span = document.createElement('span');
+        span.className = `highlight ${color}`;
+        
+        try {
+            span.appendChild(lastSelectionRange.extractContents());
+            lastSelectionRange.insertNode(span);
+        } catch (e) {
+            console.error("Error applying highlight:", e);
         }
-        selection.removeAllRanges();
+
+        window.getSelection().removeAllRanges();
         highlighterToolbar.classList.add('hidden');
+        lastSelectionRange = null;
     }
     
-    // --- DICTIONARY & PHRASEBOOK LOGIC ---
+    // --- DICTIONARY & PHRASEBOOK LOGIC (UPDATED) ---
     
-    readingPanel.addEventListener('dblclick', (e) => {
+    readingPanel.addEventListener('dblclick', async (e) => {
         if (isTimed) return;
         const selectedText = window.getSelection().toString().trim().toLowerCase();
         if (selectedText.length > 2 && selectedText.length < 30) {
-            const definition = sampleDictionary[selectedText];
-            if (definition) {
-                document.getElementById('selected-text').textContent = selectedText;
-                document.getElementById('en-definition').textContent = definition.en;
-                document.getElementById('vn-translation').textContent = definition.vn;
-                dictionaryModal.classList.remove('hidden');
+            
+            document.getElementById('selected-text').textContent = selectedText;
+            document.getElementById('en-definition').textContent = "Loading...";
+            document.getElementById('vn-translation').textContent = "Translation not available";
+            dictionaryModal.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${selectedText}`);
+                if (!response.ok) {
+                    throw new Error('Word not found');
+                }
+                const data = await response.json();
+                const definition = data[0]?.meanings[0]?.definitions[0]?.definition || "No definition found.";
+                document.getElementById('en-definition').textContent = definition;
+
+            } catch (error) {
+                document.getElementById('en-definition').textContent = "Could not find a definition for this word.";
+                console.error("Dictionary API error:", error);
             }
         }
     });
