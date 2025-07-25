@@ -43,18 +43,26 @@ document.addEventListener('DOMContentLoaded', () => {
         "courtesy": { en: "The showing of politeness in one's attitude and behavior toward others.", vn: "Sự lịch sự, nhã nhặn trong thái độ và hành vi đối với người khác." }
     };
 
+    // --- HELPER FUNCTIONS ---
+
+    // THIS IS THE MISSING FUNCTION
+    function showPage(pageId) {
+        homePage.classList.add('hidden');
+        testPage.classList.add('hidden');
+        resultsPage.classList.add('hidden');
+        document.getElementById(pageId).classList.remove('hidden');
+    }
+
     // --- INITIAL SETUP & EVENT LISTENERS ---
     
-    // Page Load: Check for direct link to a test (future feature, good to have)
     window.addEventListener('load', () => {
         const params = new URLSearchParams(window.location.search);
         const testToLoad = params.get('test');
         if (testToLoad) {
-            loadTest(testToLoad, true); // Default to timed if linked directly
+            loadTest(testToLoad, true);
         }
     });
 
-    // Home Page: Start Test Buttons
     document.querySelectorAll('.start-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const testFile = e.target.closest('.test-card').dataset.testFile;
@@ -63,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Test Page: End Test & Footer Toggle
     document.getElementById('end-test-btn').addEventListener('click', endTest);
     footerToggle.addEventListener('click', () => {
         questionNavigationContainer.classList.toggle('collapsed');
@@ -74,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
         text.textContent = questionNavigationContainer.classList.contains('collapsed') ? 'Show Navigation' : 'Hide Navigation';
     });
 
-    // Results Page: Back to Home
     document.getElementById('back-to-home-btn').addEventListener('click', () => showPage('home-page'));
 
     // --- TEST LOGIC ---
@@ -262,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const bands = testType === 'General Training' ? gtBands : acBands;
         let band = "Below 3.5";
-        // Iterate keys in descending order
         const sortedScores = Object.keys(bands).map(Number).sort((a, b) => b - a);
         for (const s of sortedScores) {
             if (score >= s) {
@@ -274,13 +279,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderReview(allQuestions) {
-        // 1. Populate reading panel with evidence highlights
         let passageHTML = '';
         currentTest.sections.forEach((section, index) => {
             passageHTML += `<h3>Reading Section ${index + 1}</h3>`;
             let sectionPassage = section.readingPassage;
-            // Add unique IDs to evidence spans
-            section.questionGroups.flatMap(g => g.questions).forEach((q, qIdx) => {
+            section.questionGroups.flatMap(g => g.questions).forEach((q) => {
                 const globalIndex = allQuestions.indexOf(q);
                 if (q.evidence) {
                     sectionPassage = sectionPassage.replace(q.evidence, `<mark id="evidence-${globalIndex}">${q.evidence}</mark>`);
@@ -290,7 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         resultsReadingPanel.innerHTML = passageHTML;
 
-        // 2. Populate review panel
         let reviewHTML = '<h3>Answer Review</h3>';
         allQuestions.forEach((q, index) => {
             const userAnswer = userAnswers[index] || "No Answer";
@@ -308,7 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         reviewContainer.innerHTML = reviewHTML;
 
-        // 3. Add click-to-scroll functionality
         reviewContainer.querySelectorAll('.review-item').forEach(item => {
             item.addEventListener('click', () => {
                 const evidenceId = item.dataset.evidenceId;
@@ -379,9 +380,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DICTIONARY & PHRASEBOOK LOGIC ---
     
     readingPanel.addEventListener('dblclick', (e) => {
-        if (isTimed) return; // Only for untimed tests
+        if (isTimed) return;
         const selectedText = window.getSelection().toString().trim().toLowerCase();
-        if (selectedText.length > 2 && selectedText.length < 30) { // Reasonable length for a lookup
+        if (selectedText.length > 2 && selectedText.length < 30) {
             const definition = sampleDictionary[selectedText];
             if (definition) {
                 document.getElementById('selected-text').textContent = selectedText;
